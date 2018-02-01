@@ -8,6 +8,7 @@ class Piece:
 		if xy is None:
 			print('Warning : xy initialised as None')
 		else:
+			xy = parse_xy(xy)
 			assert xy[0] in range(8) and xy[1] in range(8), 'Piece location out of range'
 		self.xy = xy
 		self.open_to_passant = False
@@ -25,7 +26,7 @@ class Piece:
 			self.open_to_passant = False
 		self.xy = xy
 
-		def get_all_Moves(self, Board):
+	def get_all_Moves(self, Board):
 		x, y = self.xy
 		peace_moves, kill_moves = [], []
 		move_functions_dict = get_move_functions(self.type)
@@ -72,7 +73,7 @@ class Piece:
 					i += 1
 		self.peace_moves = peace_moves
 		self.kill_moves = kill_moves
-		return peace_moves+kill_moves
+		return peace_moves, kill_moves
 
 	def get_xy(self):
 		return self.xy
@@ -106,15 +107,20 @@ class Board:
 			colour = colours[colour_no]
 			for y in range(8):
 				x = colour_no * 5 + 1
-				self.add_Piece('pawn', colour, (x, y))
+				self.add_Piece((x, y), 'pawn', colour)
 			for y in range(len(pieces)):
 				x = colour_no*7
-				self.add_Piece(pieces[y], colour, (x, y))
+				self.add_Piece((x, y), pieces[y], colour)
 		self.update_live_Pieces()
-	
-	def add_Piece(self, piece_type, piece_colour, xy):
+
+	def get_Space(self, xy):
+		x, y = parse_xy
+		return self.board[x][y]
+		
+	def add_Piece(self, xy, piece_type, piece_colour):
 		assert self.Space_is_on_board(xy), 'Space not on board'
 		assert self.Space_is_empty(xy), 'Space not empty'
+		xy = parse_xy(xy)
 		self.update_live_Pieces()
 		i = 0
 		piece_name = piece_colour + '_' + piece_type + str(i)
@@ -123,7 +129,7 @@ class Board:
 			piece_name = piece_name[:-1] + str(i)
 		new_Piece = Piece(piece_type, piece_colour, piece_name, xy)
 		self.occupied_spaces.append(xy)
-		self.board[xy[0]][xy[1]].occupy(new_Piece)
+		self.get_Space(xy).occupy(new_Piece)
 
 	def clear_Space(self, xy):
 		x, y = xy
@@ -134,7 +140,7 @@ class Board:
 		self.update_live_Pieces()
 
 
-	def update_live_Pieces(self):
+	def get_live_Pieces(self):
 		all_Pieces = {}
 		for row in self.board:
 			for Space in row:
@@ -147,28 +153,34 @@ class Board:
 					while piece_name in all_Pieces.keys():
 						i = i + 1
 						piece_name = piece_name[:-1] + str(i)	
-					all_Pieces[piece_name] = Piece
-		self.live_Pieces = all_Pieces
+					all_Pieces[piece_name] = Space.
+		return all_Pieces
+
+	def check_live_Pieces(self):
+		if all_Pieces == 
 
 	def Space_is_on_board(self, xy):
+		xy = parse_xy(xy)
 		return xy[0] in range(8) and xy[1] in range(8)
 
 	def Space_is_empty(self, xy):
+		xy = parse_xy(xy)
 		return xy not in self.occupied_spaces
 
 	def is_peace_Move(self, xy):
+		xy = parse_xy(xy)
 		return self.Space_is_on_board(xy) and self.Space_is_empty(xy)
 
 	def is_kill_Move(self, xy, current_xy, is_pawn = False):
-		assert current_xy is not None, 'Specify current xy'
+		xy = parse_xy(xy)
+		current_xy = parse_xy(current_xy)
 		if not self.Space_is_on_board(xy):
 			#print('Destination xy is not on board')
 			return False, None
 		assert self.Space_is_on_board(current_xy), 'Current xy is not on board'
-		current_colour = self.board[current_xy[0]][current_xy[1]].get_Piece().colour
-		x, y = xy
+		current_colour = self.get_Space(current_xy).get_Piece().colour
 		if not is_pawn:
-			opp_Piece = self.board[x][y].get_Piece()
+			opp_Piece = self.get_Space(xy).get_Piece()
 			if opp_Piece is None:
 				#print('No Piece at ' + str(xy))
 				return False, None
@@ -178,7 +190,8 @@ class Board:
 				else:
 					return xy, xy
 		else:
-			opp_Piece = self.board[x][y].get_Piece()
+			opp_Piece = self.get_Space(xy).get_Piece()
+			x, y = xy
 			if opp_Piece is None:
 				if current_colour == 'white' and current_xy[0] == 4:
 					opp_Piece2 = self.board[x-1][y].get_Piece()
@@ -197,10 +210,9 @@ class Board:
 					return xy, xy
 
 	def update_moves(self, piece_name):
-		for row in self.board:
-			for Space in row:
-
-
+		for i in len(self.board):
+			for j in len(self.board[0]):
+				self.board[i][j].
 
 	def get_Space(self, xy):
 		return self.board[x][y]
@@ -240,6 +252,7 @@ class Space:
 		assert colour in ['black', 'white'], 'Invalid colour for Space object'
 		self.colour = colour
 		self.x, self.y = x, y
+		self.xy = (x, y)
 		self.x_name, self.y_name = xy_to_board(x, y)
 		self.held_by = None
 
@@ -281,6 +294,19 @@ def get_move_functions(piece_type):
 
 def xy_to_board(x, y):
 	return (['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'][x], y+1)
+
+def parse_xy(xy):
+	if type(xy) == tuple and len(xy) == 2:
+		x, y = xy
+		if x in range(8) and x in range(8):
+			return (x, y)
+	elif type(xy) == str and len(xy) == 2:
+		x, y = xy[0], xy[1]
+		if x in 'abcdefgh' and y in range(1, 9):
+			x, y = dict(zip('abcdefgh', range(8)))[x], y-1
+			return (x, y)
+	else:
+		raise ValueError('Invalid xy')
 
 """
 import chess_game as cg
