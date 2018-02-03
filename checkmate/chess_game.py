@@ -17,7 +17,9 @@ class Piece:
 
 	def set_xy(self, xy):
 		xy = parse_xy(xy)
-		assert x in range(8) and y in range(8), 'Piece location out of range'
+		if xy is None:
+			print('cannot set_xy for piece', self)
+			return 0
 		if self.type == 'pawn':
 			if self.colour == 'white' and self.xy[0] == 1 and xy[0] == 3:
 				self.open_to_passant = True
@@ -29,8 +31,8 @@ class Piece:
 
 	def update_Moves(self, Board):
 		x, y = self.xy
+		print('updating moves for', self.name)
 		peace_moves, kill_moves = [], []
-		move_functions_dict = get_move_functions(self.type)
 		if self.type == 'pawn':
 			if self.colour == 'white':
 				peace_moves.append((x + 1, y))
@@ -62,18 +64,24 @@ class Piece:
 			kill_moves = [Board.is_kill_Move(new_xy, current_xy = self.xy, is_pawn = True) for new_xy in kill_moves]
 			kill_moves = [val for val in kill_moves if val[0]]
 		elif self.type in ['bishop', 'queen', 'rook']:
-			for func in move_functions_dict[self.type]:
+			for func in get_move_functions(self.type):
 				i = 1
 				new_xy = func((x, y, i))
-				while Board.is_peace_Space(new_xy) or Board.is_kill_Move(new_xy, current_xy = self.xy)[0]:
-					vals = Board.is_kill_Move(new_xy, current_xy = self.xy)
-					if vals[0]:
-						kill_moves.append(vals)
-						break
+				#print('\tchecking Space', xy_to_board(new_xy))
+				while Board.is_peace_Space(new_xy):
+					#print('\tfound peace_move')
 					peace_moves += [new_xy]
 					i += 1
+					new_xy = func((x, y, i))
+				vals = Board.is_kill_Move(new_xy, current_xy = self.xy)
+				if vals[0]:
+					#print('\tfound kill_move')
+					kill_moves.append(vals)
+				#else:
+					#print('\tnot a valid move')
 		self.peace_moves = peace_moves
 		self.kill_moves = kill_moves
+		print('\t... finished')
 		return peace_moves, kill_moves
 
 	def get_xy(self):
@@ -101,7 +109,7 @@ class Piece:
 class Board:
 	def __init__(self, to_setup = False):
 		colours = ('black', 'white')
-		self.board = [[Space((i, j), colours[(i+j)%2]) for j in range(8)] for i in range(8)]
+		self.board = {i : { j : Space((i, j), colours[(i+j)%2]) for j in range(8)} for i in range(8)}
 		self.live_Pieces = {}
 		self.dead_Pieces = {}
 		if to_setup:
@@ -121,8 +129,15 @@ class Board:
 			self.check_live_Pieces(correct = True)
 
 	def get_Space(self, xy):
+		print('getting space', xy)
 		x, y = parse_xy(xy, True)
 		return self.board[x][y]
+
+	def get_Piece(self, piece_name):
+		self.check_live_Pieces(correct = True)
+		if piece_name in self.live_Pieces.keys():
+			xy = self.live_Pieces[piece_name]
+			return self.get_Space(xy).get_Piece()
 		
 	def add_Piece(self, xy, piece_type, piece_colour):
 		xy = parse_xy(xy)
@@ -140,6 +155,7 @@ class Board:
 
 	def clear_Space(self, xy, dead = True):
 		xy = parse_xy(xy)
+		self.check_live_Pieces(correct = True)
 		piece = self.get_Space(xy).get_Piece()
 		self.get_Space(xy).vacate()
 		if dead:
@@ -148,8 +164,8 @@ class Board:
 
 	def get_live_Pieces(self, update = False):
 		all_Pieces = {}
-		for row in self.board:
-			for Space in row:
+		for row in self.board.values():
+			for Space in row.values():
 				Piece = Space.get_Piece()
 				if Piece is not None:
 					#print(type(Piece), Space)
@@ -173,6 +189,7 @@ class Board:
 		return xy[0] in range(8) and xy[1] in range(8)
 
 	def xy_is_empty(self, xy):
+		self.check_live_Pieces(correct = True)
 		return xy not in self.live_Pieces.values()
 
 	def is_peace_Space(self, xy):
@@ -214,11 +231,17 @@ class Board:
 			if opp_Piece is None:
 				if current_Piece.colour == 'white' and current_xy[0] == 4:
 					opp_Piece2 = self.board[x-1][y].get_Piece()
-					if opp_Piece2.type == 'pawn' and opp_Piece2.open_to_passant and opp_Piece2.colour == 'black':
+					if (	opp_Piece2 is not None and 
+							opp_Piece2.type == 'pawn' and 
+							opp_Piece2.open_to_passant and 
+							opp_Piece2.colour == 'black'	):
 						return xy, (x-1, y)
 				elif current_Piece.colour == 'black' and current_xy[0] == 3:
 					opp_Piece2 = self.board[x+1][y].get_Piece()
-					if opp_Piece2.type == 'pawn' and opp_Piece2.open_to_passant  and opp_Piece2.colour == 'white':
+					if (	opp_Piece2 is not None and 
+							opp_Piece2.type == 'pawn' and 
+							opp_Piece2.open_to_passant  and 
+							opp_Piece2.colour == 'white'	):
 						return xy, (x+1, y)
 				else:
 					return False, None
@@ -227,45 +250,49 @@ class Board:
 					return False, None
 				else:
 					return xy, xy
+			return False, None
 
 	def update_all_Moves(self):
 		self.check_live_Pieces(correct = True)
 		for piece_name, xy in self.live_Pieces.items():
-			print('checking moves for', piece_name)
+			#print('checking moves for', piece_name, xy)
 			self.get_Space(xy).get_Piece().update_Moves(self)
 
 	def get_Space(self, xy):
-		x, y = parse_xy(xy)
+		x, y = parse_xy(xy, True)
 		return self.board[x][y]
 
 	def move_Piece(self, xy_1, xy_2):
 		p = self.get_Space(xy_1).get_Piece()
+		p.set_xy(xy_2)
 		self.get_Space(xy_1).vacate()
 		self.get_Space(xy_2).occupy(p)
+		self.live_Pieces[p.name] = xy_2
+		self.check_live_Pieces(correct = True)
 
 
 	def clear_Board(self):
 		self.__init__()
 
 	def __str__(self):
-		rep = '\t ' + '_'*79+ '\n'
-		breaker =  ['\t|'+''.join(['         |*********|' for i in range(4)]) + '\n' + 
-					'\t|'+''.join(['_________|_________|' for i in range(4)]) + '\n', 
-					'\t|'+''.join(['*********|         |' for i in range(4)]) + '\n' + 
-					'\t|'+''.join(['_________|_________|' for i in range(4)]) + '\n']
+		rep = '\t ' + '_'*87+ '\n'
+		breaker =  ['\t|'+''.join(['          |**********|' for i in range(4)]) + '\n' + 
+					'\t|'+''.join(['__________|__________|' for i in range(4)]) + '\n', 
+					'\t|'+''.join(['**********|          |' for i in range(4)]) + '\n' + 
+					'\t|'+''.join(['__________|__________|' for i in range(4)]) + '\n']
 		for i in range(len(self.board), 0, -1):
 			row = self.board[i-1]
 			rep_row = str(i) + '\t'
 			for j in range(len(row)):
 				Space = row[j]
 				if Space.held_by is not None:
-					rep_row += '| '+str(Space.held_by.colour[0] + ' ' + Space.held_by.type).ljust(8)
+					rep_row += '| '+str(Space.held_by.name[0]+Space.held_by.name[5:]).ljust(9)
 				else:
-					rep_row += '| '+' '.ljust(8)
+					rep_row += '| '+' '.ljust(9)
 			rep_row += '|\n'
 			rep += rep_row + breaker[i%2]
 		rep += ' \t     '
-		rep += ' '.join([l.ljust(9) for l in ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']])
+		rep += ' '.join([l.ljust(10) for l in ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']])
 		return rep
 
 	def __repr__(self):
@@ -316,6 +343,7 @@ class Game:
 
 
 def get_move_functions(piece_type):
+	assert piece_type in ['bishop', 'rook', 'queen'], str(piece_type)+' has no move functions'
 	bishfuncs = [	lambda xyi : (xyi[0] + xyi[2], xyi[1] + xyi[2]), 
 					lambda xyi : (xyi[0] + xyi[2], xyi[1] - xyi[2]),
 					lambda xyi : (xyi[0] - xyi[2], xyi[1] + xyi[2]),
@@ -326,26 +354,37 @@ def get_move_functions(piece_type):
 					lambda xyi : (xyi[0]         , xyi[1] - xyi[2])]
 	queenfuncs = bishfuncs + rookfuncs
 	funcs = dict(zip(['bishop', 'rook', 'queen'], [bishfuncs, rookfuncs, queenfuncs]))
-	return funcs
+	return funcs[piece_type]
 
 def xy_to_board(xy):
 	if type(xy) == tuple and len(xy) == 2:
-		if xy < (8, 8) and (xy) >= (0, 0):
+		if xy_on_board(xy):
 			x, y = xy
 			return ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'][y] + str(x+1)
 	elif type(xy) == list:
 		return [xy_to_board(xy0) for xy0 in xy]
 	return None
 
+def xy_on_board(xy):
+	if type(xy) == tuple and len(xy) == 2:
+		a = xy[0] in range(8) and xy[1] in range(8)
+		return a
+	else:
+		return 'xy not on board'
+
 def parse_xy(xy, report_error = False):
 	if type(xy) == tuple and len(xy) == 2:
-		if xy < (8, 8) and xy >= (0, 0):
+		if xy_on_board(xy):
 			return xy
+		else:
+			return None
 	elif type(xy) == str and len(xy) == 2:
 		y, x = xy[0], int(xy[1])
 		if y in 'abcdefgh' and x in range(1, 9):
 			y, x = dict(zip('abcdefgh', range(8)))[y], x-1
 			return (x, y)
+		else:
+			return None
 	if report_error:
 		print('invalid xy:', xy)
 	return None 
@@ -362,6 +401,7 @@ b.update_all_Moves()
 b.move_Piece('b2', 'b4')
 b.move_Piece('b4', 'b5')
 b.move_Piece('c7', 'c5')
+b
 b.update_all_Moves()
 
 p = b.get_Space('b2').get_Piece()
@@ -370,5 +410,7 @@ b.move_Piece('b2', 'b4')
 b.get_Space('b1').vacate()
 b.get_Space('a3').occupy(p)
 
-
+pname = 'white_bishop0'
+p = b.get_Piece('white_bishop0')
+move_fs = cm.get_move_functions(wb.type)
 """
