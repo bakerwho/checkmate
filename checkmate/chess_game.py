@@ -1,33 +1,31 @@
 class Piece:
-	def __init__(self, piece_type, piece_colour, piece_name, xy = None):
+	def __init__(self, piece_type, piece_colour, piece_name, xy):
 		assert piece_colour.lower() in ['black', 'white'], 'Invalid colour'
 		assert piece_type.lower() in ['pawn', 'bishop', 'rook', 'knight', 'king', 'queen'], 'Invalid piece_type'
 		self.type = piece_type
 		self.colour = piece_colour
 		self.name = piece_name
-		if xy is None:
-			print('Warning : xy initialised as None')
-		else:
-			xy = parse_xy(xy)
-			assert xy[0] in range(8) and xy[1] in range(8), 'Piece location out of range'
+		xy = parse_xy(xy)
 		self.xy = xy
 		self.open_to_passant = False
 		self.peace_moves = None
 		self.kill_moves = None
+		self.history = [xy]
 
-	def set_xy(self, xy):
-		xy = parse_xy(xy)
-		if xy is None:
+	def set_xy(self, new_xy):
+		new_xy = parse_xy(new_xy)
+		if new_xy is None:
 			print('cannot set_xy for piece', self)
 			return 0
 		if self.type == 'pawn':
-			if self.colour == 'white' and self.xy[0] == 1 and xy[0] == 3:
+			if self.colour == 'white' and self.history[-1] == 1 and new_xy[0] == 3:
 				self.open_to_passant = True
-			elif self.colour == 'black' and self.xy[0] == 6 and xy[0] == 4:
+			elif self.colour == 'black' and self.history[-1] == 6 and new_xy[0] == 4:
 				self.open_to_passant = True
 		else:
 			self.open_to_passant = False
-		self.xy = xy
+		self.xy = new_xy
+		self.history.append(new_xy)
 
 	def update_Moves(self, Board):
 		x, y = self.xy
