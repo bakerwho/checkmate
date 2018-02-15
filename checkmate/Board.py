@@ -10,31 +10,42 @@ class Board:
 			self.setup_Game()
 
 	def setup_Game(self):
-		colours = ('white', 'black')
-		pieces = ('rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook')
-		for colour_no in range(len(colours)):
-			colour = colours[colour_no]
+		pieces = [	('r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'),
+					('R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R')]
+		pawns =  [	('p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'),
+					('P', 'P', 'P', 'P', 'P', 'P', 'P', 'P', )]
+		for no in range(2):
 			for y in range(8):
-				x = colour_no * 5 + 1
-				self.add_Piece((x, y), 'pawn', colour)
+				x = no * 5 + 1
+				self.add_Piece((x, y), pawns[i][y])
 			for y in range(len(pieces)):
-				x = colour_no*7
-				self.add_Piece((x, y), pieces[y], colour)
+				x = no*7
+				self.add_Piece((x, y), pieces[i][y])
 			self.check_live_Pieces(correct = True)
 
+	def setup_from_FEN(self, fen):
+		assert check_FEN(fen), "Invalid FEN"
+		self.__init__()
+		"""
+
+		"""
+
 	def get_Space(self, xy):
-		print('getting space', xy)
 		x, y = cm.parse_xy(xy, True)
 		return self.board[x][y]
 
-	def get_Piece(self, piece_name):
+	def get_Piece(self, info):
 		self.check_live_Pieces(correct = True)
 		if piece_name in self.live_Pieces.keys():
 			xy = self.live_Pieces[piece_name]
 			return self.get_Space(xy).get_Piece()
+		elif c.parse_xy(piece)
 		
-	def add_Piece(self, xy, piece_type, piece_colour):
+	def add_Piece(self, xy, piece_type):
 		xy = cm.parse_xy(xy)
+		if self.get_Space(xy).get_Piece() is not None:
+			print('Space', ,'already occupied')
+			return 0
 		assert xy is not None, 'Invalid xy'
 		assert self.xy_is_empty(xy), 'Space not empty'
 		i = 0
@@ -114,10 +125,6 @@ class Board:
 					return xy, xy
 		else:			# if pawn
 			opp_Piece = self.get_Space(xy).get_Piece()
-			"""assert (	xy[0] == current_xy[0] + 1 and 
-															current_Piece.colour == 'white') or (
-															xy[0] == current_xy[0] - 1 and 
-															current_Piece.colour == 'black')"""
 			x, y = xy
 			if opp_Piece is None:
 				if current_Piece.colour == 'white' and current_xy[0] == 4:
@@ -171,6 +178,8 @@ class Board:
 	def clear_Board(self):
 		self.__init__()
 
+	class
+
 	def __str__(self):
 		rep = '\t ' + '_'*87+ '\n'
 		breaker =  ['\t|'+''.join(['          |**********|' for i in range(4)]) + '\n' + 
@@ -195,7 +204,24 @@ class Board:
 	def __repr__(self):
 		return self.__str__()
 
-
+def check_FEN(fen):
+	lines = fen.split('/')
+	if len(lines) != 8:
+		return False
+	for line in lines:
+		if len(line) < 1:
+			return False
+		count = 0
+		for c in line:
+			if c in cm.PIECE_TO_FEN.values():
+				count += 1
+			elif c.isdigit() and int(c) <= 8 and int(c) >= 1:
+				count += int(c)
+			else:
+				return False
+		if count != 8:
+			return False
+	return True	
 		
 
 
